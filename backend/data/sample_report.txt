@@ -1,0 +1,9 @@
+I interviewed at ExampleCo for a new-grad backend software engineer role.
+
+The coding interviewer asked me to detect a cycle in a linked list
+and explain the time and space complexity.
+
+During system design, I was asked to design a URL shortener.
+
+The behavioral interviewer asked me to describe a disagreement with
+a teammate and how I resolved it.

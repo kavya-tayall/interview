@@ -1,0 +1,41 @@
+{
+  "company": "ExampleCo",
+  "role": "backend software engineer",
+  "level": "new-grad",
+  "interview_date": null,
+  "rounds": [
+    "coding",
+    "system design",
+    "behavioral"
+  ],
+  "questions": [
+    {
+      "question": "Detect a cycle in a linked list and explain the time and space complexity.",
+      "category": "coding",
+      "explicitly_reported": true,
+      "evidence": "The coding interviewer asked me to detect a cycle in a linked list and explain the time and space complexity.",
+      "confidence": 1.0
+    },
+    {
+      "question": "Design a URL shortener.",
+      "category": "system_design",
+      "explicitly_reported": true,
+      "evidence": "During system design, I was asked to design a URL shortener.",
+      "confidence": 1.0
+    },
+    {
+      "question": "Describe a disagreement with a teammate and how I resolved it.",
+      "category": "behavioral",
+      "explicitly_reported": true,
+      "evidence": "The behavioral interviewer asked me to describe a disagreement with a teammate and how I resolved it.",
+      "confidence": 1.0
+    }
+  ],
+  "topics": [
+    "linked list",
+    "time complexity",
+    "space complexity",
+    "URL shortener",
+    "conflict resolution"
+  ]
+}

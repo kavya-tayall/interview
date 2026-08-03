@@ -1,0 +1,73 @@
+{
+  "company": "ExampleCo",
+  "role": "backend software engineer",
+  "level": "new-grad",
+  "questions": [
+    {
+      "question": "Given a singly linked list, determine if it contains a cycle and explain the Big O notation for time and space complexity.",
+      "category": "coding",
+      "source_type": "reported_pattern",
+      "difficulty": "medium",
+      "reason_selected": "Tests fundamental data structure knowledge and ability to analyze algorithmic efficiency.",
+      "follow_up_questions": [
+        "How would you find the starting node of the cycle?",
+        "Can you solve this using constant extra space?"
+      ]
+    },
+    {
+      "question": "Design a system like Bitly to shorten long URLs into unique short identifiers.",
+      "category": "system_design",
+      "source_type": "reported_pattern",
+      "difficulty": "medium",
+      "reason_selected": "Core system design task for backend engineers that tests scalability and database schema design.",
+      "follow_up_questions": [
+        "How would you handle high read traffic?",
+        "How do you ensure the generated keys are globally unique?"
+      ]
+    },
+    {
+      "question": "Describe a situation where you had a conflict with a teammate regarding a technical decision and how you reached a resolution.",
+      "category": "behavioral",
+      "source_type": "reported_pattern",
+      "difficulty": "medium",
+      "reason_selected": "Evaluates soft skills and the ability to navigate professional disagreements effectively.",
+      "follow_up_questions": [
+        "What would you do differently if the conflict remained unresolved?",
+        "How did you ensure the final decision aligned with project goals?"
+      ]
+    },
+    {
+      "question": "Given two linked lists that intersect at some node, find the node where the intersection begins.",
+      "category": "coding",
+      "source_type": "reported_pattern",
+      "difficulty": "medium",
+      "reason_selected": "Builds upon linked list manipulation patterns which are frequently cited as relevant topics.",
+      "follow_up_questions": [
+        "What is the time complexity of your approach?",
+        "How does the space complexity change if you are not allowed to modify the lists?"
+      ]
+    },
+    {
+      "question": "Explain the difference between a process and a thread, and how they relate to memory usage.",
+      "category": "technical",
+      "source_type": "standard",
+      "difficulty": "medium",
+      "reason_selected": "Tests core operating system concepts essential for backend engineering roles.",
+      "follow_up_questions": [
+        "When would you prefer using threads over processes?",
+        "What are the implications of the Global Interpreter Lock in Python?"
+      ]
+    },
+    {
+      "question": "How would you handle concurrent writes to the same database record in a distributed system?",
+      "category": "system_design",
+      "source_type": "standard",
+      "difficulty": "hard",
+      "reason_selected": "Covers conflict resolution at the architecture level, which is a key requirement for backend systems.",
+      "follow_up_questions": [
+        "What is the difference between optimistic and pessimistic locking?",
+        "How does your solution affect system latency?"
+      ]
+    }
+  ]
+}
