@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { requestInterviewReport } from "../lib/reportApi";
+
 
 type PracticeQuestion = {
   question: string;
@@ -11,20 +15,28 @@ type PracticeQuestion = {
   follow_up_questions: string[];
 };
 
+
 type Message = {
   speaker: "interviewer" | "candidate";
   text: string;
+  question_index: number;
 };
+
 
 type InterviewApiResponse = {
   reply: string;
-  action: "stay_on_question" | "next_question";
+
+  action:
+    | "stay_on_question"
+    | "next_question";
+
   response_type:
     | "clarification"
     | "partial_answer"
     | "complete_answer"
     | "off_topic";
 };
+
 
 type StartInterviewResponse = {
   company: string;
@@ -34,43 +46,28 @@ type StartInterviewResponse = {
   questions: PracticeQuestion[];
 };
 
+
+type CompletionReason =
+  | "finished_questions"
+  | "time_expired";
+
+
 export default function InterviewPage() {
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
-  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
-  const [questionsLoading, setQuestionsLoading] = useState(true);
-  const [questionsError, setQuestionsError] = useState("");
-
-  const currentQuestion =
-    questions[questionIndex]?.question ?? "";
-
-  const currentQuestionData =
-    questions[questionIndex];
-
-  const [interviewStarted, setInterviewStarted] =
-    useState(false);
-
-  const [interviewComplete, setInterviewComplete] =
-    useState(false);
-
-  const [cameraError, setCameraError] = useState("");
+  const router = useRouter();
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [answer, setAnswer] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [answerError, setAnswerError] = useState("");
+  const [questionIndex, setQuestionIndex] =
+    useState(0);
 
-  const [submittedAnswers, setSubmittedAnswers] =
-    useState<string[]>([]);
+  const [questions, setQuestions] =
+    useState<PracticeQuestion[]>([]);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [questionsLoading, setQuestionsLoading] =
+    useState(true);
 
-  const [isResponding, setIsResponding] =
-    useState(false);
-
-  const [apiError, setApiError] = useState("");
+  const [questionsError, setQuestionsError] =
+    useState("");
 
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
@@ -82,6 +79,55 @@ export default function InterviewPage() {
   const [secondsRemaining, setSecondsRemaining] =
     useState(0);
 
+  const [interviewStarted, setInterviewStarted] =
+    useState(false);
+
+  const [interviewComplete, setInterviewComplete] =
+    useState(false);
+
+  const [completionReason, setCompletionReason] =
+    useState<CompletionReason | null>(null);
+
+  const [isSpeaking, setIsSpeaking] =
+    useState(false);
+
+  const [isListening, setIsListening] =
+    useState(false);
+
+  const [isResponding, setIsResponding] =
+    useState(false);
+
+  const [cameraError, setCameraError] =
+    useState("");
+
+  const [answer, setAnswer] = useState("");
+
+  const [answerError, setAnswerError] =
+    useState("");
+
+  const [apiError, setApiError] =
+    useState("");
+
+  const [messages, setMessages] =
+    useState<Message[]>([]);
+
+  const [submittedAnswers, setSubmittedAnswers] =
+    useState<string[]>([]);
+
+  const [reportLoading, setReportLoading] =
+    useState(false);
+
+  const [reportError, setReportError] =
+    useState("");
+
+
+  const currentQuestion =
+    questions[questionIndex]?.question ?? "";
+
+  const currentQuestionData =
+    questions[questionIndex];
+
+
   const interviewContextReady = Boolean(
     company.trim() &&
       role.trim() &&
@@ -89,15 +135,19 @@ export default function InterviewPage() {
       durationMinutes > 0
   );
 
+
   const timerMinutes = Math.floor(
     secondsRemaining / 60
   );
 
-  const timerSeconds = secondsRemaining % 60;
+  const timerSeconds =
+    secondsRemaining % 60;
 
-  const formattedTime = `${timerMinutes}:${timerSeconds
-    .toString()
-    .padStart(2, "0")}`;
+  const formattedTime =
+    `${timerMinutes}:${timerSeconds
+      .toString()
+      .padStart(2, "0")}`;
+
 
   function speakText(
     text: string,
@@ -105,7 +155,8 @@ export default function InterviewPage() {
   ) {
     window.speechSynthesis.cancel();
 
-    const speech = new SpeechSynthesisUtterance(text);
+    const speech =
+      new SpeechSynthesisUtterance(text);
 
     speech.onstart = () => {
       setIsSpeaking(true);
@@ -123,12 +174,15 @@ export default function InterviewPage() {
     window.speechSynthesis.speak(speech);
   }
 
+
   function speakQuestion() {
     speakText(currentQuestion);
   }
 
+
   function stopCamera() {
-    const stream = videoRef.current?.srcObject;
+    const stream =
+      videoRef.current?.srcObject;
 
     if (stream instanceof MediaStream) {
       stream.getTracks().forEach((track) => {
@@ -141,26 +195,85 @@ export default function InterviewPage() {
     }
   }
 
-  function finishInterview() {
+
+  function finishInterview(
+    reason: CompletionReason
+  ) {
     window.speechSynthesis.cancel();
 
     setIsSpeaking(false);
     setIsListening(false);
+
+    setCompletionReason(reason);
     setInterviewComplete(true);
 
     stopCamera();
   }
 
-  function advanceToNextQuestion(fromIndex: number) {
+  function loadTestInterview() {
+  if (questions.length === 0) {
+    setReportError(
+      "Generate interview questions first."
+    );
+    return;
+  }
+
+  const testAnswer =
+    "I would first clarify the requirements, then choose an efficient approach. I would explain the algorithm, discuss edge cases, and analyze the time and space complexity.";
+
+  const testFollowUpAnswer =
+    "I would also test empty input, invalid input, and large inputs. I would keep the implementation modular and add automated tests.";
+
+  setMessages([
+    {
+      speaker: "interviewer",
+      text: questions[0].question,
+      question_index: 0,
+    },
+    {
+      speaker: "candidate",
+      text: testAnswer,
+      question_index: 0,
+    },
+    {
+      speaker: "interviewer",
+      text: "What edge cases would you consider?",
+      question_index: 0,
+    },
+    {
+      speaker: "candidate",
+      text: testFollowUpAnswer,
+      question_index: 0,
+    },
+  ]);
+
+  setSubmittedAnswers([
+    testAnswer,
+    testFollowUpAnswer,
+  ]);
+
+  setQuestionIndex(0);
+  setInterviewStarted(true);
+  setCompletionReason("finished_questions");
+  setInterviewComplete(true);
+
+  stopCamera();
+}
+
+
+  function advanceToNextQuestion(
+    fromIndex: number
+  ) {
     const isLastQuestion =
       fromIndex === questions.length - 1;
 
     if (isLastQuestion) {
-      finishInterview();
+      finishInterview("finished_questions");
       return;
     }
 
     const nextIndex = fromIndex + 1;
+
     const nextQuestion =
       questions[nextIndex].question;
 
@@ -171,11 +284,13 @@ export default function InterviewPage() {
       {
         speaker: "interviewer",
         text: nextQuestion,
+        question_index: nextIndex,
       },
     ]);
 
     speakText(nextQuestion);
   }
+
 
   async function startInterview() {
     if (
@@ -203,6 +318,7 @@ export default function InterviewPage() {
         {
           speaker: "interviewer",
           text: currentQuestion,
+          question_index: 0,
         },
       ]);
 
@@ -216,6 +332,7 @@ export default function InterviewPage() {
     }
   }
 
+
   function startListening() {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -225,10 +342,12 @@ export default function InterviewPage() {
       setAnswerError(
         "Speech recognition is not supported in this browser."
       );
+
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition =
+      new SpeechRecognition();
 
     recognition.lang = "en-US";
     recognition.continuous = false;
@@ -263,26 +382,32 @@ export default function InterviewPage() {
     recognition.start();
   }
 
+
   async function submitAnswer() {
     if (!answer.trim()) {
       setAnswerError(
         "Say or type an answer before submitting."
       );
+
       return;
     }
 
-    const candidateAnswer = answer.trim();
+    const candidateAnswer =
+      answer.trim();
 
-    setSubmittedAnswers((currentAnswers) => [
-      ...currentAnswers,
-      candidateAnswer,
-    ]);
+    setSubmittedAnswers(
+      (currentAnswers) => [
+        ...currentAnswers,
+        candidateAnswer,
+      ]
+    );
 
     setMessages((currentMessages) => [
       ...currentMessages,
       {
         speaker: "candidate",
         text: candidateAnswer,
+        question_index: questionIndex,
       },
     ]);
 
@@ -296,21 +421,28 @@ export default function InterviewPage() {
         "http://localhost:8000/interview/respond",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
           },
+
           body: JSON.stringify({
             company,
             role,
             level,
 
-            duration_minutes: durationMinutes,
-            seconds_remaining: secondsRemaining,
+            duration_minutes:
+              durationMinutes,
 
-            current_question: currentQuestion,
+            seconds_remaining:
+              secondsRemaining,
+
+            current_question:
+              currentQuestion,
 
             question_category:
-              currentQuestionData?.category ?? "other",
+              currentQuestionData?.category ??
+              "other",
 
             question_difficulty:
               currentQuestionData?.difficulty ??
@@ -320,9 +452,14 @@ export default function InterviewPage() {
               currentQuestionData
                 ?.follow_up_questions ?? [],
 
-            candidate_response: candidateAnswer,
+            candidate_response:
+              candidateAnswer,
 
-            conversation_history: messages,
+            conversation_history:
+              messages.map((message) => ({
+                speaker: message.speaker,
+                text: message.text,
+              })),
           }),
         }
       );
@@ -341,12 +478,17 @@ export default function InterviewPage() {
         {
           speaker: "interviewer",
           text: data.reply,
+          question_index: questionIndex,
         },
       ]);
 
-      if (data.action === "next_question") {
+      if (
+        data.action === "next_question"
+      ) {
         speakText(data.reply, () => {
-          advanceToNextQuestion(questionIndex);
+          advanceToNextQuestion(
+            questionIndex
+          );
         });
       } else {
         speakText(data.reply);
@@ -362,15 +504,66 @@ export default function InterviewPage() {
     }
   }
 
+
+  async function generateReport() {
+    if (!completionReason) {
+      setReportError(
+        "The interview completion reason is missing."
+      );
+
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError("");
+
+    try {
+      const report =
+        await requestInterviewReport({
+          company,
+          role,
+          level,
+
+          duration_minutes:
+            durationMinutes,
+
+          questions,
+          messages,
+
+          completed_reason:
+            completionReason,
+        });
+
+      sessionStorage.setItem(
+        "interviewReport",
+        JSON.stringify(report)
+      );
+
+      router.push("/report");
+    } catch (error) {
+      console.error(error);
+
+      setReportError(
+        "Could not generate your report. Make sure the backend is running."
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+
   useEffect(() => {
     try {
       const savedInterview =
-        sessionStorage.getItem("interviewData");
+        sessionStorage.getItem(
+          "interviewData"
+        );
 
       if (!savedInterview) {
         setQuestionsError(
           "No interview was found. Return to the setup page."
         );
+
         return;
       }
 
@@ -383,8 +576,15 @@ export default function InterviewPage() {
       setCompany(data.company);
       setRole(data.role);
       setLevel(data.level);
-      setDurationMinutes(savedDuration);
-      setSecondsRemaining(savedDuration * 60);
+
+      setDurationMinutes(
+        savedDuration
+      );
+
+      setSecondsRemaining(
+        savedDuration * 60
+      );
+
       setQuestions(data.questions);
     } catch (error) {
       console.error(error);
@@ -397,59 +597,86 @@ export default function InterviewPage() {
     }
   }, []);
 
+
   useEffect(() => {
-    if (!interviewStarted || interviewComplete) {
+    if (
+      !interviewStarted ||
+      interviewComplete
+    ) {
       return;
     }
 
     const timer = window.setInterval(() => {
-      setSecondsRemaining((currentSeconds) => {
-        if (currentSeconds <= 1) {
-          window.clearInterval(timer);
-          window.speechSynthesis.cancel();
+      setSecondsRemaining(
+        (currentSeconds) => {
+          if (currentSeconds <= 1) {
+            window.clearInterval(timer);
 
-          setIsSpeaking(false);
-          setIsListening(false);
-          setInterviewComplete(true);
+            window.speechSynthesis.cancel();
 
-          const stream =
-            videoRef.current?.srcObject;
+            setIsSpeaking(false);
+            setIsListening(false);
 
-          if (stream instanceof MediaStream) {
-            stream.getTracks().forEach((track) => {
-              track.stop();
-            });
+            setCompletionReason(
+              "time_expired"
+            );
+
+            setInterviewComplete(true);
+
+            const stream =
+              videoRef.current?.srcObject;
+
+            if (
+              stream instanceof MediaStream
+            ) {
+              stream
+                .getTracks()
+                .forEach((track) => {
+                  track.stop();
+                });
+            }
+
+            if (videoRef.current) {
+              videoRef.current.srcObject =
+                null;
+            }
+
+            return 0;
           }
 
-          if (videoRef.current) {
-            videoRef.current.srcObject = null;
-          }
-
-          return 0;
+          return currentSeconds - 1;
         }
-
-        return currentSeconds - 1;
-      });
+      );
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [interviewStarted, interviewComplete]);
+  }, [
+    interviewStarted,
+    interviewComplete,
+  ]);
+
 
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
 
-      const stream = videoRef.current?.srcObject;
+      const stream =
+        videoRef.current?.srcObject;
 
-      if (stream instanceof MediaStream) {
-        stream.getTracks().forEach((track) => {
-          track.stop();
-        });
+      if (
+        stream instanceof MediaStream
+      ) {
+        stream
+          .getTracks()
+          .forEach((track) => {
+            track.stop();
+          });
       }
     };
   }, []);
+
 
   return (
     <main className="min-h-screen bg-gray-950 px-6 py-10 text-white">
@@ -480,17 +707,18 @@ export default function InterviewPage() {
           </p>
         )}
 
-        {interviewStarted && !interviewComplete && (
-          <div className="mb-6 text-center">
-            <p className="text-sm uppercase tracking-wider text-gray-400">
-              Time remaining
-            </p>
+        {interviewStarted &&
+          !interviewComplete && (
+            <div className="mb-6 text-center">
+              <p className="text-sm uppercase tracking-wider text-gray-400">
+                Time remaining
+              </p>
 
-            <p className="text-3xl font-bold">
-              {formattedTime}
-            </p>
-          </div>
-        )}
+              <p className="text-3xl font-bold">
+                {formattedTime}
+              </p>
+            </div>
+          )}
 
         <section className="mb-8 rounded-3xl bg-gray-900 p-8 text-center">
           {!interviewStarted ? (
@@ -499,9 +727,22 @@ export default function InterviewPage() {
                 Ready to begin?
               </h2>
 
+              <button
+  type="button"
+  onClick={loadTestInterview}
+  disabled={
+    questionsLoading ||
+    questions.length === 0
+  }
+  className="ml-4 rounded-full bg-gray-700 px-8 py-4 font-semibold hover:bg-gray-600 disabled:opacity-50"
+>
+  Quick Test Report
+</button>
+
               <p className="mb-6 text-gray-400">
-                Your camera and microphone will be used
-                during the interview.
+                Your camera and microphone
+                will be used during the
+                interview.
               </p>
 
               <button
@@ -524,14 +765,15 @@ export default function InterviewPage() {
               </h2>
 
               <p className="mt-3 text-gray-400">
-                Your interview responses have been
-                recorded.
+                Your interview responses
+                have been recorded.
               </p>
             </>
           ) : (
             <>
               <p className="mb-3 text-sm text-gray-400">
-                Question {questionIndex + 1} of{" "}
+                Question{" "}
+                {questionIndex + 1} of{" "}
                 {questions.length}
               </p>
 
@@ -565,7 +807,9 @@ export default function InterviewPage() {
             </div>
 
             <p className="mt-6 text-gray-400">
-              {isSpeaking ? "Speaking..." : "Waiting"}
+              {isSpeaking
+                ? "Speaking..."
+                : "Waiting"}
             </p>
           </section>
 
@@ -608,8 +852,26 @@ export default function InterviewPage() {
 
             <p className="mt-3 text-gray-400">
               You submitted{" "}
-              {submittedAnswers.length} responses.
+              {submittedAnswers.length}{" "}
+              responses.
             </p>
+
+            {reportError && (
+              <p className="mt-4 text-red-400">
+                {reportError}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={generateReport}
+              disabled={reportLoading}
+              className="mt-6 rounded-full bg-blue-600 px-8 py-4 font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {reportLoading
+                ? "Generating Report..."
+                : "Generate Report"}
+            </button>
           </section>
         )}
 
@@ -620,96 +882,114 @@ export default function InterviewPage() {
             </h2>
 
             <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={
-                    message.speaker === "interviewer"
-                      ? "mr-auto max-w-3xl rounded-2xl bg-gray-800 p-4"
-                      : "ml-auto max-w-3xl rounded-2xl bg-blue-600 p-4"
+              {messages.map(
+                (message, index) => (
+                  <div
+                    key={index}
+                    className={
+                      message.speaker ===
+                      "interviewer"
+                        ? "mr-auto max-w-3xl rounded-2xl bg-gray-800 p-4"
+                        : "ml-auto max-w-3xl rounded-2xl bg-blue-600 p-4"
+                    }
+                  >
+                    <p className="mb-1 text-xs uppercase tracking-wide text-gray-300">
+                      {message.speaker ===
+                      "interviewer"
+                        ? "Interviewer"
+                        : "You"}
+                    </p>
+
+                    <p>{message.text}</p>
+                  </div>
+                )
+              )}
+            </div>
+          </section>
+        )}
+
+        {interviewStarted &&
+          !interviewComplete && (
+            <section className="mt-8 rounded-3xl bg-gray-900 p-8">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">
+                  Your Answer
+                </h2>
+
+                <p className="text-sm text-gray-400">
+                  {isListening
+                    ? "Listening..."
+                    : "Microphone ready"}
+                </p>
+              </div>
+
+              <textarea
+                value={answer}
+                onChange={(event) =>
+                  setAnswer(
+                    event.target.value
+                  )
+                }
+                placeholder="Your spoken answer will appear here. You can also type or edit it."
+                className="min-h-36 w-full resize-none rounded-2xl border border-gray-700 bg-gray-800 p-4 text-white outline-none focus:border-blue-500"
+              />
+
+              {answerError && (
+                <p className="mt-3 text-sm text-red-400">
+                  {answerError}
+                </p>
+              )}
+
+              {apiError && (
+                <p className="mt-3 text-sm text-red-400">
+                  {apiError}
+                </p>
+              )}
+
+              <div className="mt-5 flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={startListening}
+                  disabled={
+                    isListening ||
+                    isSpeaking ||
+                    isResponding
                   }
+                  className="rounded-full bg-gray-700 px-6 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <p className="mb-1 text-xs uppercase tracking-wide text-gray-300">
-                    {message.speaker === "interviewer"
-                      ? "Interviewer"
-                      : "You"}
-                  </p>
+                  {isListening
+                    ? "Listening..."
+                    : "Speak Answer"}
+                </button>
 
-                  <p>{message.text}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+                <button
+                  type="button"
+                  onClick={submitAnswer}
+                  disabled={
+                    !answer.trim() ||
+                    isResponding ||
+                    isSpeaking
+                  }
+                  className="rounded-full bg-blue-600 px-6 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isResponding
+                    ? "Interviewer thinking..."
+                    : "Submit Answer"}
+                </button>
 
-        {interviewStarted && !interviewComplete && (
-          <section className="mt-8 rounded-3xl bg-gray-900 p-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                Your Answer
-              </h2>
-
-              <p className="text-sm text-gray-400">
-                {isListening
-                  ? "Listening..."
-                  : "Microphone ready"}
-              </p>
-            </div>
-
-            <textarea
-              value={answer}
-              onChange={(event) =>
-                setAnswer(event.target.value)
-              }
-              placeholder="Your spoken answer will appear here. You can also type or edit it."
-              className="min-h-36 w-full resize-none rounded-2xl border border-gray-700 bg-gray-800 p-4 text-white outline-none focus:border-blue-500"
-            />
-
-            {answerError && (
-              <p className="mt-3 text-sm text-red-400">
-                {answerError}
-              </p>
-            )}
-
-            {apiError && (
-              <p className="mt-3 text-sm text-red-400">
-                {apiError}
-              </p>
-            )}
-
-            <div className="mt-5 flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={startListening}
-                disabled={
-                  isListening ||
-                  isSpeaking ||
-                  isResponding
-                }
-                className="rounded-full bg-gray-700 px-6 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isListening
-                  ? "Listening..."
-                  : "Speak Answer"}
-              </button>
-
-              <button
-                type="button"
-                onClick={submitAnswer}
-                disabled={
-                  !answer.trim() ||
-                  isResponding ||
-                  isSpeaking
-                }
-                className="rounded-full bg-blue-600 px-6 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isResponding
-                  ? "Interviewer thinking..."
-                  : "Submit Answer"}
-              </button>
-            </div>
-          </section>
-        )}
+                <button
+  type="button"
+  onClick={() =>
+    finishInterview("finished_questions")
+  }
+  disabled={isResponding}
+  className="rounded-full bg-red-700 px-6 py-3 font-semibold hover:bg-red-600 disabled:opacity-50"
+>
+  End Interview Early
+</button>
+              </div>
+            </section>
+          )}
       </div>
     </main>
   );
